@@ -173,3 +173,21 @@ def test_evaluator_accepts_seven_policies_and_rejects_non_hmac_rows(tmp_path):
     with pytest.raises(ValueError, match="Unverified"):
         analyze(source, md, tmp_path / "metrics.json",
                 seed=81491, policies=policies)
+
+def test_actual_cli_accepts_frozen_bayesian_pomdp_policy(monkeypatch, tmp_path):
+    from experiment import budget8_campaign
+    called = {}
+    def collect(output, policies, trials, seed, model_root, interval, bayes_model):
+        called.update(policies=policies, bayes_model=bayes_model, trials=trials)
+        return {"unit_mock_only": True}
+    monkeypatch.setattr(budget8_campaign, "acquire", collect)
+    monkeypatch.setattr("sys.argv", [
+        "budget8_campaign", "--output", str(tmp_path / "out.csv"),
+        "--policies", "rotation", "bayes_pomdp", "bayes_entropy", "bayes_no_edges",
+        "--bayes-model", str(tmp_path / "frozen.json"), "--trials", "2",
+    ])
+    budget8_campaign.main()
+    assert called["policies"] == (
+        "rotation", "bayes_pomdp", "bayes_entropy", "bayes_no_edges")
+    assert called["bayes_model"] == tmp_path / "frozen.json"
+    assert called["trials"] == 2
