@@ -40,6 +40,7 @@ jobs:
         run: |
           python -m compileall -q experiment
           bash -n scripts/run_live.sh
+          bash -n scripts/run_auth_witness.sh
 
   live-core:
     name: Open5GS + UERANSIM / NF faults / adaptive ML
@@ -73,6 +74,36 @@ jobs:
         if: always()
         with:
           name: 5g-live-evidence-${{ github.run_id }}
+          path: results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  auth-route:
+    name: Isolated 5G SA AUSF/NRF auth-route witness
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      EXPERIMENT_MODE: ${{ inputs.mode || 'smoke' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install pinned dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Install passive header capture
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tcpdump
+      - name: Rebuild CLEAN 5GC and passively witness AUSF and NRF
+        run: bash scripts/run_auth_witness.sh
+      - name: Preserve true UDM route and separately marked artificial controls
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 5g-auth-route-evidence-${{ github.run_id }}
           path: results/
           if-no-files-found: warn
           retention-days: 14
