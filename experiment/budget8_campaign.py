@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 
 from experiment.active8_graph import Risk, BUDGET, state_zero, transport_zero
+from experiment.bayes_active import ActiveBayesian
 from experiment.collect import probe
 from experiment.features import NODES, NEIGHBORS
 from experiment.secure_collect import authenticated_kie, docker
@@ -30,6 +31,8 @@ SCENARIO_SEED_TEST = 81491
 PROVENANCE = "LIVE_EIGHT_AUTHENTICATED_KIE_HTTP11_AND_OPEN5GS_HTTP2"
 ALL_POLICIES = ("full", "rotation", "local_heuristic", "neighbor_heuristic",
                 "no_graph_gru", "graph_gru")
+BAYES_POLICIES = ("bayes_entropy", "bayes_no_edges", "bayes_pomdp")
+SUPPORTED_POLICIES = ALL_POLICIES + BAYES_POLICIES
 COLS = ("trial", "policy", "tick", "node", "label", "sba_up",
         "sba_rtt_ms", "kie_queried", "kie_valid", "kie_gap_full",
         "kie_rtt_ms", "kie_age", "alarm", "signed_request_bytes",
@@ -106,18 +109,21 @@ def rank(policy: str, tick: int, states: dict, rng: random.Random,
 
 
 def acquire(output: Path, policies: tuple[str, ...], trials: int,
-            seed: int, model_root: Path | None, interval: float = .08) -> dict:
+            seed: int, model_root: Path | None, interval: float = .08,
+            bayes_model: Path | None = None) -> dict:
     master = bytes.fromhex(os.environ["KIE_TEST_KEY"])
     if len(master) < 32:
         raise RuntimeError("Need ephemeral >=256bit HMAC key")
     if not 2 <= trials <= 14:
         raise ValueError("Need 2-14 genuine independent trials")
-    if any(p not in ALL_POLICIES for p in policies):
+    if any(p not in SUPPORTED_POLICIES for p in policies):
         raise ValueError("Unsupported protocol policy")
     if len(set(policies)) != len(policies):
         raise ValueError("No duplicated policies")
     if any(p in ("graph_gru", "no_graph_gru") for p in policies) and model_root is None:
         raise ValueError("Frozen historical models must be supplied before prospective KIEs")
+    if set(policies).intersection(BAYES_POLICIES) and bayes_model is None:
+        raise ValueError("Bayesian actions require a FROZEN prior training JSON")
     output.parent.mkdir(parents=True, exist_ok=True)
     # Guaranteed fresh serials across separate invocations sharing live agents.
     seq = {n: time.time_ns() // 1000 for n in NODES}
@@ -139,6 +145,14 @@ def acquire(output: Path, policies: tuple[str, ...], trials: int,
                     states = state_zero()
                     last_sba = transport_zero()
                     learner = None
+                    bayesian = None
+                    if policy in BAYES_POLICIES:
+                        bayesian = ActiveBayesian(
+                            bayes_model, mode={
+                                "bayes_entropy": "entropy",
+                                "bayes_no_edges": "no_edges",
+                                "bayes_pomdp": "pomdp",
+                            }[policy])
                     if policy in ("graph_gru", "no_graph_gru"):
                         learner = Risk(
                             model_root.with_name(f"{model_root.stem}-{policy}.pt"),
@@ -147,7 +161,7 @@ def acquire(output: Path, policies: tuple[str, ...], trials: int,
                     # different policies see the same precommitted
                     # target sequence but independent real HMAC replies.
                     local_rng = random.Random(seed * 100 + trial * 37
-                                              + ALL_POLICIES.index(policy) * 10000)
+                                              + SUPPORTED_POLICIES.index(policy) * 10000)
                     for tick in range(TICKS):
                         present = attack_nodes(plan, tick)
                         delayed = active_nodes(plan, tick, "benign_delay")
@@ -159,7 +173,11 @@ def acquire(output: Path, policies: tuple[str, ...], trials: int,
                         # no current SBA, labels, hidden episode targets,
                         # signed messages or future data have been used yet.
                         risks = learner.before(tick, states, last_sba) if learner else None
-                        selected = rank(policy, tick, states, local_rng, risks)
+                        if bayesian is not None:
+                            selected = bayesian.before(tick, states, last_sba)
+                            risks = dict(bayesian.last_scores)
+                        else:
+                            selected = rank(policy, tick, states, local_rng, risks)
                         if tick > 0 and policy != "full" and len(selected) != BUDGET:
                             raise RuntimeError("Actual signed KIE budget violated")
                         current_sba = {n: probe(n, 2.5) for n in NODES}
@@ -179,6 +197,10 @@ def acquire(output: Path, policies: tuple[str, ...], trials: int,
                                 gap = abs(s["seen"] + s["offset"] - claimed)
                                 s.update(gap=float(gap), age=0,
                                          rtt=response["kie_rtt_ms"], selected=1)
+                                # Bayes posterior updated AFTER actual authenticated
+                                # response; current tick decision cannot use it.
+                                if bayesian is not None:
+                                    bayesian.observe(n, float(gap))
                                 counts[policy] += 1
                                 obtained[n] = {
                                     "kie_queried": 1, "kie_valid": 1,
@@ -238,6 +260,8 @@ def acquire(output: Path, policies: tuple[str, ...], trials: int,
         "sent_authenticated_kie_calls": counts,
         "interventions": interventions,
         "source_commit": os.environ.get("GITHUB_SHA", "local"),
+        "bayesian_model": str(bayes_model) if bayes_model else None,
+        "bayesian_semantics": "approximate one-step POMDP, frozen prior historical FULL real KIE" if bayes_model else None,
     }
     output.with_suffix(".metadata.json").write_text(json.dumps(report, indent=2))
     return report
@@ -247,14 +271,15 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--policies", nargs="+", required=True,
-                   choices=ALL_POLICIES)
+                   choices=SUPPORTED_POLICIES)
     p.add_argument("--trials", type=int, default=2)
     p.add_argument("--seed", type=int, default=SCENARIO_SEED_TEST)
     p.add_argument("--model-root", type=Path)
+    p.add_argument("--bayes-model", type=Path)
     p.add_argument("--interval", type=float, default=.08)
     a = p.parse_args()
     print(json.dumps(acquire(a.output, tuple(a.policies),
-                             a.trials, a.seed, a.model_root, a.interval),
+                             a.trials, a.seed, a.model_root, a.interval, a.bayes_model),
                      indent=2))
 
 

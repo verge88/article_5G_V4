@@ -103,3 +103,24 @@ python -m experiment.analyze_budget8 \
   --metadata results/eight_active.metadata.json \
   --output results/eight_active_metrics.json --seed 81491
 echo "8-NF signed probe budget experiment completed with live Open5GS and UERANSIM."
+
+# Phase 9: frozen Bayesian two-state NF filter with one-step approximate
+# POMDP active KIE acquisition. Fit only on PRIOR honest full-observation
+# pilot; no heldout labels/targets/current responses in the action chooser.
+python -m experiment.bayes_active \
+  --input results/eight_full_training.csv \
+  --output results/eight_bayes_frozen.json
+python -m experiment.budget8_campaign \
+  --output results/eight_bayesian_active.csv \
+  --policies full rotation neighbor_heuristic graph_gru \
+             bayes_entropy bayes_no_edges bayes_pomdp \
+  --model-root results/eight_scheduler.pt \
+  --bayes-model results/eight_bayes_frozen.json \
+  --trials 2 --seed 81491 --interval .08
+python -m experiment.analyze_budget8 \
+  --input results/eight_bayesian_active.csv \
+  --metadata results/eight_bayesian_active.metadata.json \
+  --output results/eight_bayesian_metrics.json --seed 81491 \
+  --policies full rotation neighbor_heuristic graph_gru \
+             bayes_entropy bayes_no_edges bayes_pomdp
+echo "Frozen Bayesian active KIE benchmark and seven real 5GC policy campaigns completed."

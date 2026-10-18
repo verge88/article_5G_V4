@@ -14,11 +14,13 @@ from experiment.features import NODES
 
 
 def analyze(path: Path, metadata: Path, output: Path,
-            seed: int = 81491) -> dict:
+            seed: int = 81491, policies: tuple[str, ...] = ALL_POLICIES) -> dict:
     df = pd.read_csv(path)
     info = json.loads(metadata.read_text())
-    if info.get("provenance") != PROVENANCE or set(info.get("policy_order", [])) != set(ALL_POLICIES):
+    if info.get("provenance") != PROVENANCE or set(info.get("policy_order", [])) != set(policies):
         raise ValueError("Cannot compare incomplete live authenticated policies")
+    if set(df.policy.unique()) != set(policies):
+        raise ValueError("CSV does not contain exactly the requested prospective policies")
     if set(df.provenance.unique()) != {PROVENANCE}:
         raise ValueError("Synthetic or other-origin observation mixed with live")
     expected = {"policy", "trial", "tick", "node", "label", "kie_queried",
@@ -37,7 +39,7 @@ def analyze(path: Path, metadata: Path, output: Path,
         "heldout_separate_live_campaigns": True,
         "policies": {},
     }
-    for policy in ALL_POLICIES:
+    for policy in policies:
         block = df[df.policy == policy]
         requests = 0
         for trial in expected_trials:
@@ -113,26 +115,44 @@ def analyze(path: Path, metadata: Path, output: Path,
             "row_fpr": fp / (fp + tn) if fp + tn else None,
         }
     baseline_count = out["policies"]["full"]["actual_signed_queries"]
-    for policy in ALL_POLICIES:
+    for policy in policies:
         out["policies"][policy]["savings_vs_full"] = (
             1. - out["policies"][policy]["actual_signed_queries"] / baseline_count)
-    g = out["policies"]["graph_gru"]
-    r = out["policies"]["rotation"]
-    nh = out["policies"]["neighbor_heuristic"]
-    no = out["policies"]["no_graph_gru"]
-    # No post-hoc choice of the "right" baseline: these are all
-    # pre-registered. We report whether graph actually wins.
-    out["predeclared_success"] = {
-        "metric": "heldout_episode_recall at same signed KIE budget and no worse row FPR",
-        "threshold": "graph must exceed BOTH rotation and neighbor-heuristic and no-graph ablation by >=0.10 absolute episode recall",
-        "satisfied": bool(
-            all(g["episode_recall"] >= b["episode_recall"] + .10
-                for b in (r, nh, no))
-            and all(g["row_fpr"] <= b["row_fpr"]
-                    for b in (r, nh, no))
-        ),
-        "confidence": "Smoke runs are insufficient for statistical significance; report effect, CI across independent deployments later",
-    }
+    if set(policies) == set(ALL_POLICIES):
+        g = out["policies"]["graph_gru"]
+        r = out["policies"]["rotation"]
+        nh = out["policies"]["neighbor_heuristic"]
+        no = out["policies"]["no_graph_gru"]
+        # Historical Phase 8 unchanged predeclared evaluation.
+        out["predeclared_success"] = {
+            "metric": "heldout episode recall at equal actual KIE budget with no worse row FPR",
+            "threshold": "Graph-GRU >=10 pp vs rotation/neighbor/no-edge",
+            "satisfied": bool(all(g["episode_recall"] >= v["episode_recall"] + .10
+                for v in (r, nh, no)) and all(g["row_fpr"] <= v["row_fpr"]
+                for v in (r, nh, no))),
+            "confidence": "Tiny seeded lab sample; not statistically significant",
+        }
+    else:
+        required = {"full", "rotation", "neighbor_heuristic",
+                    "graph_gru", "bayes_entropy", "bayes_no_edges", "bayes_pomdp"}
+        if set(policies) != required:
+            raise ValueError("Non-legacy prospective Bayesian comparison requires all 7 preregistered controls")
+        bayes = out["policies"]["bayes_pomdp"]
+        controls = [out["policies"][n] for n in
+                    ("rotation", "neighbor_heuristic", "graph_gru",
+                     "bayes_entropy", "bayes_no_edges")]
+        out["predeclared_success"] = {
+            "metric": "heldout whole-episode recall at identical authenticated KIE budget",
+            "threshold": "Approximate Bayesian POMDP >=10 percentage points better than ALL rotation, graph-neighbor, Graph-GRU, entropy-only and no-edge Bayesian alternatives, and no worse row FPR",
+            "satisfied": bool(all(bayes["episode_recall"] >= z["episode_recall"] + .10
+                for z in controls) and all(bayes["row_fpr"] <= z["row_fpr"]
+                for z in controls)),
+            "confidence": "Only two prospectively executed test trials per policy; cannot prove significance",
+        }
+        out["experiment"] = "LIVE_EIGHT_NF_FROZEN_BAYESIAN_APPROX_POMDP_ACTIVE_KIE"
+        out["bayesian_nature"] = "Factorized two-state Markov belief, calibrated signed-emission likelihood; one-step approximate action value, NOT exact POMDP optimum"
+        out["fair_competitors"] = list(required)
+        out["calibration"] = "Frozen independently acquired full-signed historical KIE from separate trial seed"
     out["important_limits"] = [
         "All agent reports are lab-only counters, NOT native Open5GS NF signaling",
         "Graph-correlated attack propagation is deliberately orchestrated, not naturally spreading malware",
@@ -154,8 +174,10 @@ def main():
     p.add_argument("--metadata", type=Path, default=Path("results/eight_active.metadata.json"))
     p.add_argument("--output", type=Path, default=Path("results/eight_active_metrics.json"))
     p.add_argument("--seed", type=int, default=81491)
+    p.add_argument("--policies", nargs="+", default=list(ALL_POLICIES))
     a = p.parse_args()
-    print(json.dumps(analyze(a.input, a.metadata, a.output, a.seed), indent=2))
+    print(json.dumps(analyze(a.input, a.metadata, a.output, a.seed,
+                             tuple(a.policies)), indent=2))
 
 
 if __name__ == "__main__":
