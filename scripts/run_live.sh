@@ -97,8 +97,8 @@ docker compose -f docker-compose.yml -f "$ROOT/experiment/kie.compose.yml" up -d
 for endpoint in 10.45.0.11 10.45.0.21; do
   signed_ready=0
   for attempt in $(seq 1 45); do
-    response="$(curl --noproxy '*' -sS --max-time 2 -o /dev/null -w '%{http_code}' "http://$endpoint:18080/" 2>/dev/null || true)"
-    if [[ "$response" == "404" ]]; then signed_ready=1; break; fi
+    response="$(curl --noproxy '*' -sS --max-time 2 -o /dev/null -w '%{http_code}' "http://$endpoint:18080/ready" 2>/dev/null || true)"
+    if [[ "$response" == "200" ]]; then signed_ready=1; break; fi
     sleep 1
   done
   if (( ! signed_ready )); then echo "KIE agent unavailable at $endpoint" >&2; exit 3; fi
