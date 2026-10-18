@@ -96,7 +96,7 @@ jobs:
       - name: Install passive header capture
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq tcpdump
+          sudo apt-get install -y -qq tcpdump iptables
       - name: Rebuild CLEAN 5GC and passively witness AUSF and NRF
         run: bash scripts/run_auth_witness.sh
       - name: Preserve true UDM route and separately marked artificial controls
