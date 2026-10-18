@@ -191,3 +191,37 @@ def test_actual_cli_accepts_frozen_bayesian_pomdp_policy(monkeypatch, tmp_path):
         "rotation", "bayes_pomdp", "bayes_entropy", "bayes_no_edges")
     assert called["bayes_model"] == tmp_path / "frozen.json"
     assert called["trials"] == 2
+
+def test_entire_short_bayesian_campaign_runs_offline_without_real_network_claim(tmp_path, monkeypatch):
+    """Exercise actual acquisition control flow, never use this as attack evidence."""
+    from experiment import budget8_campaign
+    model = frozen(tmp_path)
+    monkeypatch.setenv("KIE_TEST_KEY", "cd" * 32)
+    monkeypatch.setattr(budget8_campaign, "TICKS", 3)
+    monkeypatch.setattr(budget8_campaign, "scenario", lambda seed, trial: [])
+    monkeypatch.setattr(budget8_campaign, "set_switches", lambda old, desired, mode: set(desired))
+    monkeypatch.setattr(budget8_campaign, "docker", lambda *a: None)
+    monkeypatch.setattr(budget8_campaign.time, "sleep", lambda x: None)
+    monkeypatch.setattr(budget8_campaign, "probe",
+                        lambda node, timeout: {"up": 1, "rtt_ms": 1.0})
+    signed_count = {n: 0 for n in NODES}
+    def mock_signed(node, seq, key, timeout):
+        signed_count[node] += 1
+        return {"kie_valid": 1, "kie_invariant_error": 0,
+                "kie_claimed_received": signed_count[node],
+                "kie_rtt_ms": 2., "kie_request_bytes": 170,
+                "kie_response_bytes": 250}
+    monkeypatch.setattr(budget8_campaign, "authenticated_kie", mock_signed)
+    out = tmp_path / "control_flow_mock_only.csv"
+    actual = budget8_campaign.acquire(
+        out, ("bayes_entropy", "bayes_no_edges", "bayes_pomdp"),
+        trials=2, seed=81491, model_root=None, interval=0.,
+        bayes_model=model)
+    assert all(actual["sent_authenticated_kie_calls"][p] == 24
+               for p in ("bayes_entropy", "bayes_no_edges", "bayes_pomdp"))
+    raw = pd.read_csv(out)
+    assert len(raw) == 3 * 2 * 3 * 8
+    assert raw.groupby(["policy", "trial", "tick"]).kie_queried.sum().tolist().count(8) == 6
+    assert raw.groupby(["policy", "trial", "tick"]).kie_queried.sum().tolist().count(2) == 12
+    # This fixture exercises code paths; it has no legitimate live HTTP evidence.
+    assert actual["provenance"] == PROVENANCE
