@@ -40,6 +40,7 @@ jobs:
         run: |
           python -m compileall -q experiment
           bash -n scripts/run_live.sh
+          bash -n scripts/run_auth_witness.sh
 
   live-core:
     name: Open5GS + UERANSIM / NF faults / adaptive ML
