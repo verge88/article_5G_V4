@@ -89,4 +89,21 @@ python -m experiment.auth_witness --lab "$LAB" \
 python -m experiment.eval_auth_route \
   --input results/auth_witness.json \
   --output results/auth_route_metrics.json
-echo "PASS: genuine NRF discovery, AUSF outbound UDM transport and UE 5G registration"
+
+# Phase 6: a genuine SECOND Open5GS UDM instance, advertised by REAL NRF.
+# This is a benign authorization/failover negative control, NOT cache poisoning.
+# The alt UDM configuration is deployed ONLY to this pinned disposable lab.
+cp "$ROOT/experiment/udm-alt.yaml" "$LAB/configs/open5gs/udm-alt.yaml"
+if [[ "${EXPERIMENT_MODE:-smoke}" == research ]]; then
+  UDM_SWITCH_CYCLES=2
+else
+  UDM_SWITCH_CYCLES=1
+fi
+python -m experiment.legit_udm_switch --lab "$LAB" \
+  --overlay "$ROOT/experiment/udm_switch.compose.yml" \
+  --output results/legit_udm_switch.json \
+  --cycles "$UDM_SWITCH_CYCLES" --seconds 28
+python -m experiment.eval_legit_switch \
+  --input results/legit_udm_switch.json \
+  --output results/legit_udm_switch_metrics.json
+echo "PASS: live registered and independently observed AUSF UDM failover; no attack performed"
