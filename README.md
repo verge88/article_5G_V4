@@ -64,3 +64,18 @@ internals; its spoofing does not constitute compromise of the SMF process.
 A PyTorch CPU package is installed only in the GitHub Actions live job.
 Artifacts include `results/signed_kie.csv` and
 `results/signed_gnn_metrics.json` after a successful run.
+
+## Phase 3: adaptive signed-control budget evaluation
+
+An additional LIVE experiment sends authentically signed KIEs to the two
+instrumented NF test agents under **full**, **rotation** and
+**normal-only ML-guided** policies. It randomized NRF/SMF signed-counter
+falsification **without artificial response delay**, and checks a separately
+benign 120-ms delay as a negative control. The scheduler never uses the
+intervention labels. It measures actual signed transmissions, episode
+detection time, false alarms and application-level byte estimates.
+
+See **[Phase 3: scope and scientific design](docs/ADAPTIVE_SIGNED_BUDGET.md)**.
+The graph-temporal GNN from Phase 2 is **not** the online scheduler in Phase 3;
+Phase 3 uses IsolationForest ranking and a deterministic counter-disagreement
+alarm. This phase is not evidence of compromised stock Open5GS NFs.

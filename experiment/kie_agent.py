@@ -100,7 +100,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(403)
             return
         local_up = local_nf_port_open()
-        is_spoof = MODE_FILE.exists()
+        is_spoof = MODE_FILE.exists() or Path("/tmp/kie-spoof-counter-only").exists()
         with LOCK:
             count = int(STATE["count"])
             if not is_spoof:
@@ -108,7 +108,8 @@ class Handler(BaseHTTPRequestHandler):
             claimed = STATE["last_honest"] if is_spoof else count
         # Integrity invariant stays consistent even during dishonest reporting.
         # Independent challenge count and signed claimed count now disagree.
-        if is_spoof:
+        # Benign delay-only is a negative control: RTT alone is not attack.
+        if MODE_FILE.exists() or Path("/tmp/kie-delay-only").exists():
             time.sleep(0.12)
         reply = {
             "node": NODE,
