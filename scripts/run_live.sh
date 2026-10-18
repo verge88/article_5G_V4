@@ -115,6 +115,27 @@ python -m experiment.secure_collect --output results/signed_kie.csv --trials 4 \
 python -m experiment.temporal_gnn --input results/signed_kie.csv \
   --output results/signed_gnn_metrics.json --epochs "$EPOCHS"
 
+# Phase 3: three independent campaigns of ACTUALLY SENT signed KIEs,
+# with randomized NRF/SMF counter-only misreports and benign delays.
+# The prior is fitted only to baseline LIVE signed observations from
+# the earlier full-control study; it never sees Phase 3 attack labels.
+if [[ "$MODE" == research ]]; then
+  POLICY_TRIALS=4; POLICY_BASE=12; POLICY_ATTACK=14
+  POLICY_RECOVERY=10; POLICY_NUISANCE=10
+else
+  POLICY_TRIALS=2; POLICY_BASE=6; POLICY_ATTACK=9
+  POLICY_RECOVERY=6; POLICY_NUISANCE=6
+fi
+python -m experiment.adaptive_signed \
+  --pilot results/signed_kie.csv --output results/adaptive_signed.csv \
+  --trials "$POLICY_TRIALS" --baseline "$POLICY_BASE" \
+  --attack "$POLICY_ATTACK" --recovery "$POLICY_RECOVERY" \
+  --nuisance "$POLICY_NUISANCE" --signed-budget 1 --max-age 3 \
+  --interval "$INTERVAL"
+python -m experiment.analyze_adaptive \
+  --input results/adaptive_signed.csv \
+  --output results/adaptive_signed_metrics.json
+
 cd "$LAB"
 ./scripts/traffic_test.sh
 echo "LIVE Open5GS / UERANSIM experiment completed and validated."
