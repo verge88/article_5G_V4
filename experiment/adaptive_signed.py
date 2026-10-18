@@ -136,7 +136,7 @@ def run(args: argparse.Namespace) -> dict:
                     }
                     tick = 0
                     for phase, target, count in trial_phases:
-                        switch = ("kie-spoof" if phase == "spoof"
+                        switch = ("kie-spoof-counter-only" if phase == "spoof"
                                   else "kie-delay-only" if phase == "benign_delay"
                                   else None)
                         try:
@@ -219,7 +219,7 @@ def run(args: argparse.Namespace) -> dict:
                                        f"/tmp/{switch}")
         finally:
             for node in SIGNERS:
-                for flag in ("kie-spoof", "kie-delay-only"):
+                for flag in ("kie-spoof", "kie-spoof-counter-only", "kie-delay-only"):
                     try:
                         docker("exec", f"kie-{node}", "rm", "-f", f"/tmp/{flag}")
                     except RuntimeError:
