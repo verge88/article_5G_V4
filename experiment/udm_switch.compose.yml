@@ -1,0 +1,20 @@
+# Phase 6 benign UDM redundancy: a REAL additional Open5GS UDM process.
+# Only use with the pinned disposable lab docker-compose.yml.
+# Never start it outside scripts/run_auth_witness.sh.
+services:
+  udm-alt:
+    image: ${OPEN5GS_IMAGE:-gradiant/open5gs:2.8.0}
+    user: "999:999"
+    container_name: open5gs-udm-alt
+    restart: "no"
+    command: ["open5gs-udmd", "-c", "/opt/open5gs/etc/open5gs/udm.yaml"]
+    volumes:
+      - ./configs/open5gs/udm-alt.yaml:/opt/open5gs/etc/open5gs/udm.yaml:ro
+      - open5gs-logs:/var/log/open5gs
+    depends_on:
+      nrf:
+        condition: service_started
+    networks:
+      core:
+        ipv4_address: 10.45.0.33
+        aliases: [udm-alt]
