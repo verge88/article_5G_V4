@@ -196,3 +196,26 @@ unchanged; **Phase 9's Bayesian advantage is not assumed**.
 The controller is a **factorized approximate one-step POMDP**,
 not an exact POMDP solver, native 3GPP NF attestation or actual NF
 compromise. See [Phase 9 scientific protocol](docs/PHASE9_BAYESIAN_POMDP.md).
+
+## Phase 10 — frozen Bayesian/POMDP under unseen controlled failure families
+
+The Phase 9 frozen Bayesian model and its competitor schedulers
+are evaluated prospectively on **new, precommitted** signer-fault
+seeds and three different report-falsification families:
+shorter but shifted neighbor cascades, off-graph cascades,
+and independent two-tick faults. A fourth **fully benign**
+series introduces only signer-response latency without
+falsifying any counters. Training seed 107 and previous
+test seed 81491 are excluded. Each policy sends its own
+actual HMAC challenges to eight NF-colocated test agents,
+all against the same real pinned Open5GS + UERANSIM 5G SA
+Docker lab; only two signed KIE checks are permitted
+per tick after an eight-agent initial round.
+
+The predeclared result gate and real-data integrity
+requirements are documented **before running CI** in
+[Phase 10 frozen OOD protocol](docs/PHASE10_FROZEN_OOD_PROTOCOL.md).
+No weights, utilities, operating thresholds, attack
+seeds or service topology are retuned to achieve
+favorable results. These remain staged LAB SIGNER
+counter faults, **not native compromised NFs**.

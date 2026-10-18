@@ -124,3 +124,30 @@ python -m experiment.analyze_budget8 \
   --policies full rotation neighbor_heuristic graph_gru \
              bayes_entropy bayes_no_edges bayes_pomdp
 echo "Frozen Bayesian active KIE benchmark and seven real 5GC policy campaigns completed."
+
+
+# Phase 10 preregistered OUT-OF-DISTRIBUTION prospective evaluation.
+# Models frozen here; no additional Bayesian fitting or Graph-GRU training.
+# Each family differs from prior train seed=107 and old holdout seed=81491.
+# The real HTTP2 Open5GS + UERANSIM testbed remains running.
+for cohort in \
+  shifted_neighbor:52937 \
+  off_graph:73417 \
+  independent_short:90371 \
+  benign_only:118901
+do
+  family="${cohort%%:*}"
+  seed="${cohort##*:}"
+  echo "START precommitted unseen family=$family seed=$seed"
+  python -m experiment.budget8_campaign \
+    --output "results/eight_ood_${family}.csv" \
+    --policies full rotation neighbor_heuristic graph_gru \
+               bayes_entropy bayes_no_edges bayes_pomdp \
+    --model-root results/eight_scheduler.pt \
+    --bayes-model results/eight_bayes_frozen.json \
+    --scenario-family "$family" --seed "$seed" \
+    --trials 2 --interval .08
+done
+python -m experiment.eval_holdout8 \
+  --folder results --output results/eight_ood_generalization_metrics.json
+echo "All FOUR frozen OOD cohorts and independent signed evidence audit completed."

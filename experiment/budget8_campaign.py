@@ -24,6 +24,7 @@ from experiment.bayes_active import ActiveBayesian
 from experiment.collect import probe
 from experiment.features import NODES, NEIGHBORS
 from experiment.secure_collect import authenticated_kie, docker
+from experiment.holdout8_scenarios import scenario_for, SEEDS
 
 TICKS = 36
 SCENARIO_SEED_TRAIN = 107
@@ -110,7 +111,9 @@ def rank(policy: str, tick: int, states: dict, rng: random.Random,
 
 def acquire(output: Path, policies: tuple[str, ...], trials: int,
             seed: int, model_root: Path | None, interval: float = .08,
-            bayes_model: Path | None = None) -> dict:
+            bayes_model: Path | None = None, scenario_family: str = "legacy") -> dict:
+    if scenario_family != "legacy" and SEEDS.get(scenario_family) != seed:
+        raise ValueError("Unregistered out-of-distribution evaluation family/seed")
     master = bytes.fromhex(os.environ["KIE_TEST_KEY"])
     if len(master) < 32:
         raise RuntimeError("Need ephemeral >=256bit HMAC key")
@@ -139,7 +142,8 @@ def acquire(output: Path, policies: tuple[str, ...], trials: int,
             writer.writeheader()
             for policy in order:
                 for trial in range(trials):
-                    plan = scenario(seed, trial)
+                    plan = (scenario(seed, trial) if scenario_family == "legacy"
+                            else scenario_for(scenario_family, seed, trial))
                     interventions.append({"policy": policy, "trial": trial,
                                           "predeclared_agent_counter_modes": plan})
                     states = state_zero()
@@ -260,6 +264,7 @@ def acquire(output: Path, policies: tuple[str, ...], trials: int,
         "sent_authenticated_kie_calls": counts,
         "interventions": interventions,
         "source_commit": os.environ.get("GITHUB_SHA", "local"),
+        "scenario_family": scenario_family, "scenario_seed": seed,
         "bayesian_model": str(bayes_model) if bayes_model else None,
         "bayesian_semantics": "approximate one-step POMDP, frozen prior historical FULL real KIE" if bayes_model else None,
     }
@@ -277,9 +282,11 @@ def main():
     p.add_argument("--model-root", type=Path)
     p.add_argument("--bayes-model", type=Path)
     p.add_argument("--interval", type=float, default=.08)
+    p.add_argument("--scenario-family", choices=("legacy", *SEEDS), default="legacy")
     a = p.parse_args()
     print(json.dumps(acquire(a.output, tuple(a.policies),
-                             a.trials, a.seed, a.model_root, a.interval, a.bayes_model),
+                             a.trials, a.seed, a.model_root, a.interval, a.bayes_model,
+                             a.scenario_family),
                      indent=2))
 
 

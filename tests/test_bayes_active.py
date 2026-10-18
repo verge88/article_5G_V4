@@ -177,8 +177,9 @@ def test_evaluator_accepts_seven_policies_and_rejects_non_hmac_rows(tmp_path):
 def test_actual_cli_accepts_frozen_bayesian_pomdp_policy(monkeypatch, tmp_path):
     from experiment import budget8_campaign
     called = {}
-    def collect(output, policies, trials, seed, model_root, interval, bayes_model):
-        called.update(policies=policies, bayes_model=bayes_model, trials=trials)
+    def collect(output, policies, trials, seed, model_root, interval, bayes_model,
+                scenario_family="legacy"):
+        called.update(policies=policies, bayes_model=bayes_model, trials=trials, scenario_family=scenario_family)
         return {"unit_mock_only": True}
     monkeypatch.setattr(budget8_campaign, "acquire", collect)
     monkeypatch.setattr("sys.argv", [
@@ -191,6 +192,7 @@ def test_actual_cli_accepts_frozen_bayesian_pomdp_policy(monkeypatch, tmp_path):
         "rotation", "bayes_pomdp", "bayes_entropy", "bayes_no_edges")
     assert called["bayes_model"] == tmp_path / "frozen.json"
     assert called["trials"] == 2
+    assert called["scenario_family"] == "legacy"
 
 def test_entire_short_bayesian_campaign_runs_offline_without_real_network_claim(tmp_path, monkeypatch):
     """Exercise actual acquisition control flow, never use this as attack evidence."""
