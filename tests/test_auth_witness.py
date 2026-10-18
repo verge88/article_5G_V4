@@ -65,7 +65,7 @@ def test_offline_counterfactual_keeps_real_trace_immutable(tmp_path: Path):
         original["trials"].append({
             "trial": trial, "authorized_udm": [UDM],
             "observed_targets": [UDM, "10.45.0.11"],
-            "ue_pdu_tun": 1,
+            "ue_registration_ok": 1, "ue_pdu_tun": 0,
             "local_sba_up": {"nrf": 1, "ausf": 1, "udm": 1},
             "source_kind": "REAL_PASSIVE_HEADER_OBSERVATION",
         })
