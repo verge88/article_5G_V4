@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 
+from experiment.active_gnn import OnlineGraphScheduler, fresh_transport
 from experiment.collect import probe
 from experiment.features import NODES
 from experiment.secure_collect import SIGNERS, authenticated_kie, docker
@@ -28,6 +29,7 @@ COLS = [
     "label", "sba_up", "sba_rtt_ms", "kie_queried", "kie_valid",
     "kie_rtt_ms", "kie_gap_new", "kie_gap_last", "kie_age_ticks",
     "kie_request_bytes", "kie_response_bytes", "alarm", "probe_kind",
+    "gnn_risk_before", "gnn_selected",
 ]
 MODEL_COLS = ("kie_rtt_ms", "kie_counter_gap", "up", "age")
 
@@ -114,9 +116,20 @@ def run(args: argparse.Namespace) -> dict:
     # Permutation avoids always letting one policy run on the freshest core.
     order = list(args.policies)
     rng.shuffle(order)
-    if set(order) != {"full", "rotation", "ml_adaptive"}:
-        raise ValueError("All three policies required for the signed-budget study")
-    seq = {n: 1_000_000 for n in SIGNERS}
+    normal = {"full", "rotation", "ml_adaptive"}
+    with_gnn = normal | {"gnn_guided"}
+    if set(order) not in (normal, with_gnn):
+        raise ValueError("Policies must be full/rotation/ml_adaptive, optionally gnn_guided")
+    if "gnn_guided" in order and not args.gnn_model:
+        raise ValueError("gnn_guided requires a trained --gnn-model")
+    graph_enabled = "gnn_guided" in order
+    # Preserve HMAC anti-replay monotonicity ACROSS separately invoked
+    # acquisition campaigns against the SAME long-running NF agents.
+    # The previous Phase 3 study uses ~1e6; using a high-resolution UTC
+    # epoch microsecond counter avoids replay of those sequence numbers.
+    # Fresh nonces remain cryptographically unpredictable.
+    seq_origin = time.time_ns() // 1_000
+    seq = {n: seq_origin for n in SIGNERS}
     rows = 0
     interventions = []
     signed_counts = {policy: 0 for policy in order}
@@ -134,9 +147,11 @@ def run(args: argparse.Namespace) -> dict:
                     })
                     state = {
                         n: dict(age=99, gap=0.0, up=1.0, rtt=2.0, seen=0,
-                                claimed_offset=None) for n in SIGNERS
+                                claimed_offset=None, last_selected=False) for n in SIGNERS
                     }
                     tick = 0
+                    last_transport = fresh_transport()
+                    graph = OnlineGraphScheduler(Path(args.gnn_model)) if policy == "gnn_guided" else None
                     for phase, target, count in trial_phases:
                         switch = ("kie-spoof-counter-only" if phase == "spoof"
                                   else "kie-delay-only" if phase == "benign_delay"
@@ -146,12 +161,32 @@ def run(args: argparse.Namespace) -> dict:
                                 docker("exec", f"kie-{target}", "touch",
                                        f"/tmp/{switch}")
                             for _ in range(count):
-                                chosen = select_signed(policy, tick, state, model, rng,
-                                                       args.signed_budget, args.max_age)
+                                risks = graph.risks(tick, state, last_transport) if graph else {}
+                                if graph is not None:
+                                    if tick == 0:
+                                        chosen = set(SIGNERS)
+                                    else:
+                                        # A stale signer is forced into the budget.
+                                        # Otherwise the learned next-tick posterior is
+                                        # combined with observed age and prior verified gap.
+                                        ranks = []
+                                        for n in SIGNERS:
+                                            age = state[n]["age"]
+                                            priority = ((1000.0 if age >= args.max_age else 0.0)
+                                                        + risks[n] + .12 * min(age, args.max_age)
+                                                        + .20 * min(state[n]["gap"], 4))
+                                            ranks.append((priority + rng.uniform(0, .00001), n))
+                                        chosen = {n for _, n in sorted(
+                                            ranks, reverse=True)[:args.signed_budget]}
+                                else:
+                                    chosen = select_signed(policy, tick, state, model, rng,
+                                                           args.signed_budget, args.max_age)
                                 now = datetime.now(timezone.utc).isoformat()
                                 # All eight real SBA listeners are measured every
                                 # tick, separate from budgeted authenticated KIEs.
                                 transport = {n: probe(n, args.timeout) for n in NODES}
+                                # Current tick transport is observed AFTER decision.
+                                last_transport = transport
                                 observed = {}
                                 for node in SIGNERS:
                                     s = state[node]
@@ -168,7 +203,8 @@ def run(args: argparse.Namespace) -> dict:
                                             s["claimed_offset"] = claimed - s["seen"]
                                         gap = abs(s["seen"] + s["claimed_offset"] - claimed)
                                         s.update(gap=float(gap), rtt=signed["kie_rtt_ms"],
-                                                 up=signed["kie_agent_local_up"], age=0)
+                                                 up=signed["kie_agent_local_up"], age=0,
+                                                 last_selected=True)
                                         observed[node] = {
                                             "kie_queried": 1, "kie_valid": 1,
                                             "kie_rtt_ms": signed["kie_rtt_ms"],
@@ -178,6 +214,7 @@ def run(args: argparse.Namespace) -> dict:
                                         }
                                     else:
                                         s["age"] += 1
+                                        s["last_selected"] = False
                                         # No KIE sent or received. Last verified
                                         # value and its age are kept explicitly.
                                         observed[node] = {
@@ -210,6 +247,8 @@ def run(args: argparse.Namespace) -> dict:
                                         # post-fault staleness until next query.
                                         "alarm": int(bool(current and current["gap"] > 0)),
                                         "probe_kind": "LIVE_SIGNED_AGENT_HTTP11_AND_SBA_HTTP2",
+                                        "gnn_risk_before": risks.get(node, ""),
+                                        "gnn_selected": int(bool(graph and node in chosen)),
                                     })
                                     rows += 1
                                 file.flush()
@@ -229,9 +268,13 @@ def run(args: argparse.Namespace) -> dict:
     metadata = {
         "provenance": "LIVE_OPEN5GS_PLUS_SIGNED_NF_COLOCATED_AGENT",
         "pilot_source": args.pilot, "pilot_normal_samples": pilot_n,
+        "graph_model_path": args.gnn_model,
+        "graph_features": "PAST-ONLY cached authenticated KIE, age and PREVIOUS SBA",
+        "graph_training_source": "previous Phase 3 full-policy campaigns; no Phase 4 fine-tuning",
         "all_policies": order, "budgets_after_tick_zero": {
             "full": len(SIGNERS), "rotation": args.signed_budget,
             "ml_adaptive": args.signed_budget,
+            **({"gnn_guided": args.signed_budget} if graph_enabled else {}),
         }, "signed_counts": signed_counts, "rows": rows,
         "schedule": interventions, "random_seed": args.seed,
         "source_sha": os.environ.get("GITHUB_SHA", "local"),
@@ -249,6 +292,7 @@ def main() -> None:
     p.add_argument("--policies", nargs="+",
                    default=["full", "rotation", "ml_adaptive"])
     p.add_argument("--signed-budget", type=int, default=1)
+    p.add_argument("--gnn-model")
     p.add_argument("--max-age", type=int, default=3)
     p.add_argument("--trials", type=int, default=2)
     p.add_argument("--seed", type=int, default=2026)

@@ -79,3 +79,20 @@ See **[Phase 3: scope and scientific design](docs/ADAPTIVE_SIGNED_BUDGET.md)**.
 The graph-temporal GNN from Phase 2 is **not** the online scheduler in Phase 3;
 Phase 3 uses IsolationForest ranking and a deterministic counter-disagreement
 alarm. This phase is not evidence of compromised stock Open5GS NFs.
+
+## Phase 4: end-to-end neural selection of signed KIE
+
+The next verified experiment trains a PyTorch graph-convolution + temporal
+GRU **scheduler** on earlier real full-signature observations, then uses its
+risk estimates to choose which NRF/SMF test agent receives the next
+**actual signed challenge**, subject to the same 1-of-2 budget used by
+rotation and IsolationForest. The current tick's KIE response is never
+available at scheduling time. GNN weights remain frozen for the entire
+prospective campaign.
+
+See [Phase 4 scientific protocol](docs/PHASE4_GNN_ACTIVE.md). Important:
+the model prioritizes recipient polling; signed-count mismatch remains the
+independent alarm and the agents are not native Open5GS NFs. Full/rotation/
+IsolationForest/GNN data are stored in `results/phase4_signed.csv`;
+`results/graph_scheduler.metadata.json` documents the previous-trial
+training/validation split. Results are not asserted until live Actions pass.

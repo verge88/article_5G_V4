@@ -32,8 +32,10 @@ def summarize(path: Path, destination: Path) -> dict:
         raise ValueError(f"Required fields missing: {sorted(missing)}")
     if set(raw["probe_kind"].unique()) != {"LIVE_SIGNED_AGENT_HTTP11_AND_SBA_HTTP2"}:
         raise ValueError("Refusing any non-live probe or mixed-simulation data")
-    if set(raw["policy"].unique()) != {"full", "rotation", "ml_adaptive"}:
-        raise ValueError("All three live policies required")
+    observed_policies = set(raw["policy"].unique())
+    normal = {"full", "rotation", "ml_adaptive"}
+    if observed_policies not in (normal, normal | {"gnn_guided"}):
+        raise ValueError("Live control policies missing or invalid")
     if raw.duplicated(["policy", "trial", "tick", "node"]).any():
         raise ValueError("Repeated row in full observation grid")
     for (_, _, _), tick in raw.groupby(["policy", "trial", "tick"], sort=False):
@@ -110,13 +112,13 @@ def summarize(path: Path, destination: Path) -> dict:
         comparison.append({"policy": policy, **{k: v for k, v in control.items()
                                                 if not isinstance(v, (list, dict))}})
     full_queries = out["policies"]["full"]["signed_kie_per_tick"]
-    for name in ("rotation", "ml_adaptive"):
+    for name in sorted(observed_policies - {"full"}):
         out["policies"][name]["relative_signed_query_savings"] = (
             1 - out["policies"][name]["signed_kie_per_tick"] / full_queries)
     out["limitations"] = [
         "Budget is measured for 2 signed test agents, NOT total 5G control-plane traffic",
         "All 8 NF SBA reachability HTTP2 probes continue every tick and are not included in KIE cost",
-        "The ML model only ranks where to send KIE; binary alarms use independent signed counts",
+        "GNN and IsolationForest only rank recipients; binary alarms use independent signed counts",
         "Different policies have independently timed interventions, not synchronized paired trials",
         "Intervention is a synthetic dishonest test agent, not compromised Open5GS SMF/NRF",
         "Benign delay and counter-only spoof reduce but do not eliminate dataset shortcuts",
