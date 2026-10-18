@@ -74,6 +74,15 @@ class Handler(BaseHTTPRequestHandler):
         # Never log secrets, challenge content or subscriber information.
         pass
 
+    def do_GET(self) -> None:
+        if self.path != "/ready":
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Length", "2")
+        self.end_headers()
+        self.wfile.write(b"ok")
+
     def do_POST(self) -> None:
         if self.path != "/kie/v1/challenge":
             self.send_error(404)
