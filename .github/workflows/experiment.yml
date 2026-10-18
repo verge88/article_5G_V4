@@ -64,6 +64,10 @@ jobs:
           curl -V
           ls -l /dev/net/tun || true
           lsmod | grep -E '^sctp|^tun' || true
+      - name: Install passive TCP header capture (isolated live runner)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tcpdump
       - name: Install CPU-only PyTorch for genuine trainable graph-temporal model
         run: python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
       - name: Run REAL 5GC experiment (fail closed)
