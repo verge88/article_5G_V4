@@ -60,8 +60,8 @@ def evaluate(input_path: Path, output: Path) -> dict:
         allowed, observed = set(t["authorized_udm"]), set(t["observed_targets"])
         if allowed != {UDM} or not (observed & allowed):
             raise ValueError("Live NRF and AUSF were not mutually consistent")
-        if not t["ue_pdu_tun"]:
-            raise ValueError("Live UE must authenticate successfully")
+        if not t.get("ue_registration_ok"):
+            raise ValueError("Live UE must complete observed 5G registration")
         if disagreement(allowed, observed):
             raise ValueError("Non-benign target found in clean baseline")
         if not all(t["local_sba_up"].values()):
