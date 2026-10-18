@@ -1,0 +1,32 @@
+# Add as an overlay on the PINNED upstream Open5GS testbed.
+# These test agents use the existing NF network namespaces and an isolated
+# management port 18080. They are NOT native Open5GS SBA functions.
+services:
+  kie-nrf:
+    image: python:3.11-slim
+    container_name: kie-nrf
+    network_mode: "service:nrf"
+    depends_on:
+      nrf:
+        condition: service_started
+    environment:
+      KIE_NODE: nrf
+      KIE_NF_IP: 10.45.0.11
+      KIE_TEST_KEY: ${KIE_TEST_KEY:?Generate a fresh test-only hex key}
+    volumes:
+      - ${KIE_SOURCE_DIR:?Absolute repository root}/experiment/kie_agent.py:/app/agent.py:ro
+    entrypoint: ["python", "-u", "/app/agent.py"]
+  kie-smf:
+    image: python:3.11-slim
+    container_name: kie-smf
+    network_mode: "service:smf"
+    depends_on:
+      smf:
+        condition: service_started
+    environment:
+      KIE_NODE: smf
+      KIE_NF_IP: 10.45.0.21
+      KIE_TEST_KEY: ${KIE_TEST_KEY:?Generate a fresh test-only hex key}
+    volumes:
+      - ${KIE_SOURCE_DIR:?Absolute repository root}/experiment/kie_agent.py:/app/agent.py:ro
+    entrypoint: ["python", "-u", "/app/agent.py"]
