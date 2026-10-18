@@ -1,0 +1,18 @@
+# Phase 6 authorized redundant UDM, NEVER an attacker-controlled fake.
+logger:
+  file:
+    path: /var/log/open5gs/udm-alt.log
+  level: info
+
+global:
+  max:
+    ue: 1024
+
+udm:
+  sbi:
+    server:
+      - address: 10.45.0.33
+        port: 7777
+    client:
+      nrf:
+        - uri: http://10.45.0.11:7777
