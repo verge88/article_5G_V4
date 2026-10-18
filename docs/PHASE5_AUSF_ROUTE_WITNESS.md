@@ -16,7 +16,7 @@ recognize a divergence if one occurs.
 
 ## Two genuinely independent observational views
 
-For each real UERANSIM UE registration in the running Docker lab:
+The independent `auth-route` GitHub Actions job builds a **separate freshly cloned disposable Open5GS/UERANSIM lab**. It does not reuse the network state stressed by Phases 1–4. In each trial it restarts the test AMF, gNB and AUSF to force a new NAS authentication path, then performs the following read-only observations:
 
 1. **NRF authority view:** request Open5GS `Nnrf_NFDiscovery` using real
    HTTP/2, with target NF type UDM and requester type AUSF.
@@ -89,7 +89,7 @@ NRF-advertised UDM profiles and real AUSF egress connections.
 
 ## GitHub Actions evidence and fail-closed gates
 
-The pinned GitHub Actions smoke mode should upload:
+The dedicated GitHub Actions `auth-route` job should upload an independent `5g-auth-route-evidence-*` artifact:
 
 - `auth_witness.json`: genuinely observed clean routing evidence
 - `real-ausf-tcp-trial*.txt`: header-only live tcpdump traces
@@ -114,3 +114,16 @@ The user should not treat the proposed vulnerability exploit as
 demonstrated merely because the read-only routing witness works.
 
 References: Open5GS `GHSA-fvpc-gmgr-qrg3`, 3GPP TS 29.510 NFDiscovery.
+
+## Integration lesson from the first CI attempts
+
+On the long-running Phase 4 testbed a clean AUSF/UE restart yielded
+a successful UE registration and genuine AUSF→UDM TCP SYN, but sometimes
+failed to re-establish PDU state; a subsequent UE restart reused the AMF
+registration context and generated **no new AUSF→UDM connection**.
+The fail-closed witness correctly refused these runs as proof of
+repeated real authentication. To avoid confusing authentication routing
+with prior SMF/AMF session state, the isolated job starts a fresh Docker
+core and explicitly reboots the disposable AMF, gNB and AUSF before
+each authenticating UE test. It requires both new captured TCP SYNs and
+fresh UE successful-registration logs. It reports the PDU separately.
