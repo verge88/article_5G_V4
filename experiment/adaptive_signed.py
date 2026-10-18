@@ -141,7 +141,7 @@ def run(args: argparse.Namespace) -> dict:
                     })
                     state = {
                         n: dict(age=99, gap=0.0, up=1.0, rtt=2.0, seen=0,
-                                claimed_offset=None) for n in SIGNERS
+                                claimed_offset=None, last_selected=False) for n in SIGNERS
                     }
                     tick = 0
                     last_transport = fresh_transport()
@@ -197,7 +197,8 @@ def run(args: argparse.Namespace) -> dict:
                                             s["claimed_offset"] = claimed - s["seen"]
                                         gap = abs(s["seen"] + s["claimed_offset"] - claimed)
                                         s.update(gap=float(gap), rtt=signed["kie_rtt_ms"],
-                                                 up=signed["kie_agent_local_up"], age=0)
+                                                 up=signed["kie_agent_local_up"], age=0,
+                                                 last_selected=True)
                                         observed[node] = {
                                             "kie_queried": 1, "kie_valid": 1,
                                             "kie_rtt_ms": signed["kie_rtt_ms"],
@@ -207,6 +208,7 @@ def run(args: argparse.Namespace) -> dict:
                                         }
                                     else:
                                         s["age"] += 1
+                                        s["last_selected"] = False
                                         # No KIE sent or received. Last verified
                                         # value and its age are kept explicitly.
                                         observed[node] = {
