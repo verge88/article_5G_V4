@@ -48,3 +48,19 @@ at `00fe2ef2cf9b93ffb185050671ba145fb6a4ef05`.
 **Read the complete [experimental protocol and limitations](docs/PROTOCOL.md)
 before using results in a scientific article.** This project does not contain
 real result tables until the Actions workflow has successfully executed.
+
+## Phase 2: signed KIE and genuine PyTorch graph-temporal neural experiment
+
+The live CI also launches HMAC-authenticated challenge/response reporting agents
+co-located with **SMF and NRF** (separate HTTP/1.1 lab endpoints), models
+signed but dishonest SMF agent reports, and trains a real graph-convolution +
+GRU model on live measurement sequences. The new comparison includes GNN
+without KIE, GNN without graph edges, local/hierarchical RF and signed-KIE RF.
+Validation and testing use different complete acquisition trials.
+
+See **[Phase 2 protocol](docs/SIGNED_KIE_GNN.md)**. Important distinction:
+the agent signs *its own challenge receipt count*, not actual Open5GS NF
+internals; its spoofing does not constitute compromise of the SMF process.
+A PyTorch CPU package is installed only in the GitHub Actions live job.
+Artifacts include `results/signed_kie.csv` and
+`results/signed_gnn_metrics.json` after a successful run.
