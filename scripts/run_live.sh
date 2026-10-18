@@ -136,6 +136,30 @@ python -m experiment.analyze_adaptive \
   --input results/adaptive_signed.csv \
   --output results/adaptive_signed_metrics.json
 
+# Phase 4: Train graph-temporal ranking weights solely from the previously
+# acquired Phase 3 FULL-polling live dataset; split its full trials into
+# training and validation. Sparse masks are TRAINING augmentation only.
+python -m experiment.active_gnn \
+  --input results/adaptive_signed.csv \
+  --output results/graph_scheduler.pt --epochs "$EPOCHS"
+
+# Prospective online measurements: the graph-GRU ranks signers BEFORE each
+# tick's real SBA/KIE probes. No model updates from Phase 4 labels.
+# All policies operate on independent campaigns at an identical signed
+# one-out-of-two post-initialization budget.
+python -m experiment.adaptive_signed \
+  --pilot results/signed_kie.csv \
+  --gnn-model results/graph_scheduler.pt \
+  --policies full rotation ml_adaptive gnn_guided \
+  --output results/phase4_signed.csv \
+  --trials "$POLICY_TRIALS" --baseline "$POLICY_BASE" \
+  --attack "$POLICY_ATTACK" --recovery "$POLICY_RECOVERY" \
+  --nuisance "$POLICY_NUISANCE" --signed-budget 1 --max-age 3 \
+  --seed 8417 --interval "$INTERVAL"
+python -m experiment.analyze_adaptive \
+  --input results/phase4_signed.csv \
+  --output results/phase4_metrics.json
+
 cd "$LAB"
 ./scripts/traffic_test.sh
 echo "LIVE Open5GS / UERANSIM experiment completed and validated."
