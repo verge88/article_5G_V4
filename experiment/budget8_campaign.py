@@ -161,7 +161,7 @@ def acquire(output: Path, policies: tuple[str, ...], trials: int,
                     # different policies see the same precommitted
                     # target sequence but independent real HMAC replies.
                     local_rng = random.Random(seed * 100 + trial * 37
-                                              + ALL_POLICIES.index(policy) * 10000)
+                                              + SUPPORTED_POLICIES.index(policy) * 10000)
                     for tick in range(TICKS):
                         present = attack_nodes(plan, tick)
                         delayed = active_nodes(plan, tick, "benign_delay")
