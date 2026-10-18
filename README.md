@@ -146,3 +146,29 @@ the **actual recorded fault and restoration**, with Phase 6 genuine
 benign UDM failovers retained as negative controls. The existing
 Phase 4 GNN has no routing-destination features and is NOT credited
 with detecting this scenario. See [Phase 7 protocol](docs/PHASE7_REAL_ROUTE_FAULT.md).
+
+## Phase 8: harder 8-NF signed-probe scheduling test (pre-registered)
+
+A separate real Open5GS + UERANSIM experiment has **eight independent
+NF-co-located HMAC test agents**, rather than the two of Phase 4.
+Budgeted strategies have exactly two signed KIE challenges per tick
+(after an eight-agent initialization), and face precommitted cascades
+of artificially dishonest test-agent reports across adjacent
+NF-role nodes. Graph topology is also supplied to an explicit
+non-neural graph-neighbor heuristic, alongside rotation, a local
+heuristic, a no-edge temporal GRU and full polling.
+
+Trained schedulers use only prior **genuine full-polling signed
+observation** campaigns with artificial sparse-mask augmentation;
+prospective held-out policy evaluations issue their own real
+signed network requests, never use future labels, and record
+actual bytes and episode first-alert delay.
+
+These are deliberately graph-correlated LAB AGENT interventions,
+not native Open5GS 5GC compromises. A neural advantage is **not
+presumed**: primary gate is >=10 percentage points better episode
+recall than rotation, graph-neighbor heuristic and no-edge GRU
+at equal budget **without worse FPR**. Compare measured results
+without retuning to achieve this outcome.
+
+[Scientific Phase 8 design](docs/PHASE8_8NF_GRAPH_BUDGET.md).

@@ -41,6 +41,7 @@ jobs:
           python -m compileall -q experiment
           bash -n scripts/run_live.sh
           bash -n scripts/run_auth_witness.sh
+          bash -n scripts/run_budget8.sh
 
   live-core:
     name: Open5GS + UERANSIM / NF faults / adaptive ML
@@ -106,4 +107,30 @@ jobs:
           name: 5g-auth-route-evidence-${{ github.run_id }}
           path: results/
           if-no-files-found: warn
+          retention-days: 14
+
+  budget8:
+    name: 8 NF authenticated KIE / causal graph and strong baseline schedulers
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies and genuine CPU graph-GRU
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+      - name: Collect eight real signed KIEs and validate prospective budgeted policies
+        run: bash scripts/run_budget8.sh
+      - name: Archive all training, prospectively acquired signed messages and per-episode comparisons
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eight-nf-signed-budget-${{ github.run_id }}
+          path: results/eight*
+          if-no-files-found: error
           retention-days: 14
