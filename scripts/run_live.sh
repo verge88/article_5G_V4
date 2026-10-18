@@ -14,12 +14,16 @@ cleanup() {
     (
       cd "$LAB"
       docker unpause open5gs-nrf open5gs-smf 2>/dev/null || true
-      docker compose --profile ran --profile tools logs --no-color --timestamps         >"$ROOT/results/open5gs-docker.log" 2>&1 || true
-      docker compose --profile ran --profile tools ps         >"$ROOT/results/containers.txt" 2>&1 || true
+      local_overlay=()
+      if [[ -n "${KIE_TEST_KEY:-}" ]]; then
+        local_overlay=(-f docker-compose.yml -f "$ROOT/experiment/kie.compose.yml")
+      fi
+      docker compose "${local_overlay[@]}" --profile ran --profile tools logs --no-color --timestamps >"$ROOT/results/open5gs-docker.log" 2>&1 || true
+      docker compose "${local_overlay[@]}" --profile ran --profile tools ps >"$ROOT/results/containers.txt" 2>&1 || true
       if [[ -f runtime/traffic_test_result.txt ]]; then
         cp runtime/traffic_test_result.txt "$ROOT/results/ue-traffic.txt"
       fi
-      docker compose --profile ran --profile tools down -v --remove-orphans || true
+      docker compose "${local_overlay[@]}" --profile ran --profile tools down -v --remove-orphans || true
     )
   fi
   exit "$code"
@@ -82,6 +86,35 @@ python -m experiment.collect --output results/fixed.csv --policy full   --trials
 python -m experiment.train_policy results/fixed.csv --output results/policy.joblib
 python -m experiment.collect --output results/adaptive.csv --policy adaptive   --policy-model results/policy.joblib --budget 3 --trials 2   --baseline "$BASE" --fault "$FAULT" --recovery "$RECOVERY"   --interval "$INTERVAL" --faults smf nrf --seed 98
 python -m experiment.evaluate --fixed results/fixed.csv   --adaptive results/adaptive.csv --output results/metrics.json
+
+# Extended study: authenticated KIE challenge/response in two NF-colocated
+# laboratory agents. Generated test key remains ephemeral (never uploaded).
+export KIE_SOURCE_DIR="$ROOT"
+export KIE_TEST_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then echo "::add-mask::$KIE_TEST_KEY"; fi
+cd "$LAB"
+docker compose -f docker-compose.yml -f "$ROOT/experiment/kie.compose.yml" up -d kie-nrf kie-smf
+for endpoint in 10.45.0.11 10.45.0.21; do
+  signed_ready=0
+  for attempt in $(seq 1 45); do
+    response="$(curl --noproxy '*' -sS --max-time 2 -o /dev/null -w '%{http_code}' "http://$endpoint:18080/" 2>/dev/null || true)"
+    if [[ "$response" == "404" ]]; then signed_ready=1; break; fi
+    sleep 1
+  done
+  if (( ! signed_ready )); then echo "KIE agent unavailable at $endpoint" >&2; exit 3; fi
+done
+cd "$ROOT"
+if [[ "$MODE" == research ]]; then
+  SIGNED_BASE=18; SIGNED_SPOOF=14; SIGNED_RECOVERY=14; EPOCHS=100
+else
+  SIGNED_BASE=12; SIGNED_SPOOF=10; SIGNED_RECOVERY=10; EPOCHS=65
+fi
+python -m experiment.secure_collect --output results/signed_kie.csv --trials 4 \
+  --baseline "$SIGNED_BASE" --spoof "$SIGNED_SPOOF" \
+  --recovery "$SIGNED_RECOVERY" --interval "$INTERVAL"
+python -m experiment.temporal_gnn --input results/signed_kie.csv \
+  --output results/signed_gnn_metrics.json --epochs "$EPOCHS"
+
 cd "$LAB"
 ./scripts/traffic_test.sh
 echo "LIVE Open5GS / UERANSIM experiment completed and validated."
