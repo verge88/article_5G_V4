@@ -96,3 +96,18 @@ independent alarm and the agents are not native Open5GS NFs. Full/rotation/
 IsolationForest/GNN data are stored in `results/phase4_signed.csv`;
 `results/graph_scheduler.metadata.json` documents the previous-trial
 training/validation split. Results are not asserted until live Actions pass.
+
+## Phase 5: passive AUSF–NRF UDM-route consistency witness
+
+The CI observes **real Open5GS AUSF outbound TCP header destinations**
+during independently triggered UERANSIM registrations and compares them
+against **live NRF NFDiscovery nudm-ueau** endpoints. It verifies that
+normal actual UE routing is consistent and contrasts a local-availability
+rule with the cross-view invariant on a **separate explicitly artificial
+metadata-mismatch copy**. The live traces are never modified.
+
+See [Phase 5 evidence protocol](docs/PHASE5_AUSF_ROUTE_WITNESS.md).
+This phase **does not** exploit GHSA-fvpc-gmgr-qrg3, poison Open5GS
+AUSF caches, redirect live traffic, or establish any gain for GNN on
+a real compromised core. The advisory specifically evaluated Open5GS
+2.7.7, whereas this pinned lab uses 2.8.0.
