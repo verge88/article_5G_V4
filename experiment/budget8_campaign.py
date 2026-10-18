@@ -271,7 +271,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--policies", nargs="+", required=True,
-                   choices=ALL_POLICIES)
+                   choices=SUPPORTED_POLICIES)
     p.add_argument("--trials", type=int, default=2)
     p.add_argument("--seed", type=int, default=SCENARIO_SEED_TEST)
     p.add_argument("--model-root", type=Path)
