@@ -154,8 +154,14 @@ def collect(lab: Path, out: Path, trials: int = 2, seconds: int = 16) -> dict:
               "trials": []}
     out.parent.mkdir(parents=True, exist_ok=True)
     for trial in range(trials):
-        # Force fresh authentication socket for every trial without
-        # modifying its destination or application behavior.
+        # AMF may reuse UE's prior NAS security context after just an
+        # AUSF/UE restart and never initiate 5G-AKA. Clean AMF + gNB
+        # restarts in this DISPOSABLE testbed force a fresh registration
+        # path; no source code, cache entries or endpoint routes are edited.
+        command("docker", "compose", "restart", "amf", cwd=str(lab), timeout=65)
+        command("docker", "compose", "--profile", "ran", "restart", "gnb",
+                cwd=str(lab), timeout=65)
+        time.sleep(4)
         command("docker", "compose", "restart", "ausf", cwd=str(lab), timeout=65)
         ready = False
         for _ in range(40):
