@@ -162,4 +162,20 @@ python -m experiment.analyze_adaptive \
 
 cd "$LAB"
 ./scripts/traffic_test.sh
+
+# Phase 5: observational (non-exploit) route-consistency witness.
+# Discover authorized UDM from live NRF via HTTP/2, and independently
+# record real AUSF network-namespace outbound TCP SYNs during new UE attach.
+# Never send forged notifications or modify NF's state/routing here.
+cd "$ROOT"
+export CI_5GC_READONLY_AUTH_WITNESS=YES
+if [[ "$MODE" == research ]]; then AUTH_ROUTE_TRIALS=4
+else AUTH_ROUTE_TRIALS=2; fi
+python -m experiment.auth_witness --lab "$LAB" \
+  --output results/auth_witness.json --trials "$AUTH_ROUTE_TRIALS"
+python -m experiment.eval_auth_route \
+  --input results/auth_witness.json \
+  --output results/auth_route_metrics.json
+cd "$LAB"
+./scripts/traffic_test.sh
 echo "LIVE Open5GS / UERANSIM experiment completed and validated."
