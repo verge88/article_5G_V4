@@ -123,7 +123,13 @@ def run(args: argparse.Namespace) -> dict:
     if "gnn_guided" in order and not args.gnn_model:
         raise ValueError("gnn_guided requires a trained --gnn-model")
     graph_enabled = "gnn_guided" in order
-    seq = {n: 1_000_000 for n in SIGNERS}
+    # Preserve HMAC anti-replay monotonicity ACROSS separately invoked
+    # acquisition campaigns against the SAME long-running NF agents.
+    # The previous Phase 3 study uses ~1e6; using a high-resolution UTC
+    # epoch microsecond counter avoids replay of those sequence numbers.
+    # Fresh nonces remain cryptographically unpredictable.
+    seq_origin = time.time_ns() // 1_000
+    seq = {n: seq_origin for n in SIGNERS}
     rows = 0
     interventions = []
     signed_counts = {policy: 0 for policy in order}
