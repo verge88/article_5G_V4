@@ -111,3 +111,20 @@ This phase **does not** exploit GHSA-fvpc-gmgr-qrg3, poison Open5GS
 AUSF caches, redirect live traffic, or establish any gain for GNN on
 a real compromised core. The advisory specifically evaluated Open5GS
 2.7.7, whereas this pinned lab uses 2.8.0.
+
+## Phase 6: genuine authorized UDM rotation as a security negative control
+
+An additional isolated LIVE Open5GS/UERANSIM experiment starts a **second real
+NRF-registered `open5gs-udmd` NF**. The lab first authenticates a new UE
+through the second UDM after intentionally stopping the original, then
+restores the original UDM and repeats the registration and passive AUSF
+TCP SYN capture. Both transitions require real NRF NFDiscovery, an
+observed outgoing AUSF connection and a successful fresh UE registration.
+
+The legitimate alternate service must **not** be misclassified as attack
+simply because it differs from a hard-coded single-UDM IP. Independent
+NRF/AUSF cross-view comparison is evaluated against static IP pinning
+and availability checks. Analytic route-forgery *metadata copies* remain
+distinct from true network measurements; **no actual attack or GNN
+superiority is claimed**. See
+[Phase 6 legitimate UDM switch protocol](docs/PHASE6_LEGIT_UDM_SWITCH.md).
