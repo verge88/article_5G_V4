@@ -128,3 +128,21 @@ and availability checks. Analytic route-forgery *metadata copies* remain
 distinct from true network measurements; **no actual attack or GNN
 superiority is claimed**. See
 [Phase 6 legitimate UDM switch protocol](docs/PHASE6_LEGIT_UDM_SWITCH.md).
+
+## Phase 7: independently witnessed **actual** transport misrouting (NOT NF-cache poisoning)
+
+The isolated Open5GS + UERANSIM Actions job now applies a **reversible
+iptables OUTPUT DNAT in the disposable AUSF Linux network namespace**,
+diverting actual UDM-directed TCP SYNs to the real non-UDM PCF while
+the independently queried live NRF retains UDM registrations. This is
+a genuinely injected *network-layer* fault with real packet headers;
+it does **not** invoke forged NFStatusNotify or change AUSF NF cache.
+The rule is unconditionally removed and actual clean AUSF→UDM
+connection and UE registration recovery are mandatory.
+
+The evaluator compares NF availability, hardcoded singleton UDM
+pinning and independently observed NRF↔AUSF route consistency on
+the **actual recorded fault and restoration**, with Phase 6 genuine
+benign UDM failovers retained as negative controls. The existing
+Phase 4 GNN has no routing-destination features and is NOT credited
+with detecting this scenario. See [Phase 7 protocol](docs/PHASE7_REAL_ROUTE_FAULT.md).
