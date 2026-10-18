@@ -34,6 +34,8 @@ MODEL_COLS = ("kie_rtt_ms", "kie_counter_gap", "up", "age")
 
 def fit_prior(pilot_path: Path, seed: int) -> tuple[IsolationForest, int]:
     raw = pd.read_csv(pilot_path)
+    if "probe_kind" not in raw or set(raw["probe_kind"].unique()) != {"live_sba_http2_plus_signed_agent"}:
+        raise ValueError("The ranking prior must use previously measured LIVE signed agent data")
     subset = raw[
         (raw["phase"] == "baseline") &
         (raw["node"].isin(SIGNERS)) &
