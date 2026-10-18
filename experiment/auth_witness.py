@@ -34,8 +34,17 @@ def command(*args, cwd=None, timeout=40, check=True):
     return r
 
 
-def nrf_udm_discovery() -> dict:
-    """Retrieve real UDM service endpoints from live NRF NFDiscovery."""
+def nrf_udm_discovery(expected_udms: set[str] | None = None) -> dict:
+    """Retrieve real UDM service endpoints from live NRF NFDiscovery.
+
+    In the original single-UDM phase, require exactly the pinned UDM.
+    During authorized dual-UDM failover, callers must explicitly supply
+    their expected actual lab addresses; all NRF-reported UDM endpoints
+    must be within this whitelist and no other NF type is trusted.
+    """
+    expected = {UDM} if expected_udms is None else set(expected_udms)
+    if not expected:
+        raise ValueError("Expected lab UDM allowlist is empty")
     r = command(
         "curl", "--noproxy", "*", "--http2-prior-knowledge", "-fSs",
         "--max-time", "5", "-G", f"http://{NRF}:{SBI}/nnrf-disc/v1/nf-instances",
@@ -66,8 +75,10 @@ def nrf_udm_discovery() -> dict:
             if not addresses:
                 addresses.update(nf.get("ipv4Addresses") or [])
     # Lab contract: ensure we did not accidentally query a different network.
-    if addresses != {UDM}:
-        raise RuntimeError(f"Unexpected live NRF UDM discovery: {sorted(addresses)}")
+    if not addresses or not addresses.issubset(expected):
+        raise RuntimeError(
+            f"Unexpected live NRF UDM discovery: {sorted(addresses)} "
+            f"(expected subset of {sorted(expected)})")
     return {"udm_ips": sorted(addresses),
             "nf_instance_ids": service_ids,
             "instance_count": len(instances),
