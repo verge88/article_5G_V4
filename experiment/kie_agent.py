@@ -108,7 +108,8 @@ class Handler(BaseHTTPRequestHandler):
             claimed = STATE["last_honest"] if is_spoof else count
         # Integrity invariant stays consistent even during dishonest reporting.
         # Independent challenge count and signed claimed count now disagree.
-        if is_spoof:
+        # Benign delay-only is a negative control: RTT alone is not attack.
+        if is_spoof or Path("/tmp/kie-delay-only").exists():
             time.sleep(0.12)
         reply = {
             "node": NODE,
