@@ -107,3 +107,20 @@ python -m experiment.eval_legit_switch \
   --input results/legit_udm_switch.json \
   --output results/legit_udm_switch_metrics.json
 echo "PASS: live registered and independently observed AUSF UDM failover; no attack performed"
+
+# Phase 7: REAL, reversible packet-level routing inconsistency in ONLY
+# this disposable AUSF network namespace, never an Open5GS NF cache exploit.
+# Require live unauthorized PCF destination SYN with NRF still advertising UDM;
+# then remove the exact scoped DNAT rules and prove UE registration recovery.
+if [[ "${EXPERIMENT_MODE:-smoke}" == research ]]; then
+  ROUTE_FAULT_CYCLES=2
+else
+  ROUTE_FAULT_CYCLES=1
+fi
+python -m experiment.route_fault --lab "$LAB" \
+  --output results/real_route_fault.json \
+  --cycles "$ROUTE_FAULT_CYCLES"
+python -m experiment.eval_route_fault \
+  --input results/real_route_fault.json \
+  --output results/real_route_fault_metrics.json
+echo "PASS: REAL transport misroute to non-UDM PCF and verified clean restoration"
