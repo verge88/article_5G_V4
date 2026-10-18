@@ -131,6 +131,6 @@ jobs:
         if: always()
         with:
           name: eight-nf-signed-budget-${{ github.run_id }}
-          path: results/eight-*
-          if-no-files-found: warn
+          path: results/eight*
+          if-no-files-found: error
           retention-days: 14
