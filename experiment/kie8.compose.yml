@@ -1,0 +1,115 @@
+# Experimental 8-NF signed KIE observer plane. Agents report their OWN receipt counters;
+# Open5GS NFs are not modified and these are NOT native 3GPP attestations.
+services:
+  kie8-nrf:
+    image: python:3.11-slim
+    container_name: kie8-nrf
+    network_mode: "service:nrf"
+    depends_on:
+      nrf:
+        condition: service_started
+    environment:
+      KIE_NODE: nrf
+      KIE_NF_IP: 10.45.0.11
+      KIE_TEST_KEY: ${KIE_TEST_KEY:?Generate a fresh 256-bit test-only HMAC key}
+    volumes:
+      - ${KIE_SOURCE_DIR:?Absolute repository root}/experiment/kie_agent.py:/app/agent.py:ro
+    entrypoint: ["python", "-u", "/app/agent.py"]
+  kie8-amf:
+    image: python:3.11-slim
+    container_name: kie8-amf
+    network_mode: "service:amf"
+    depends_on:
+      amf:
+        condition: service_started
+    environment:
+      KIE_NODE: amf
+      KIE_NF_IP: 10.45.0.20
+      KIE_TEST_KEY: ${KIE_TEST_KEY:?Generate a fresh 256-bit test-only HMAC key}
+    volumes:
+      - ${KIE_SOURCE_DIR:?Absolute repository root}/experiment/kie_agent.py:/app/agent.py:ro
+    entrypoint: ["python", "-u", "/app/agent.py"]
+  kie8-smf:
+    image: python:3.11-slim
+    container_name: kie8-smf
+    network_mode: "service:smf"
+    depends_on:
+      smf:
+        condition: service_started
+    environment:
+      KIE_NODE: smf
+      KIE_NF_IP: 10.45.0.21
+      KIE_TEST_KEY: ${KIE_TEST_KEY:?Generate a fresh 256-bit test-only HMAC key}
+    volumes:
+      - ${KIE_SOURCE_DIR:?Absolute repository root}/experiment/kie_agent.py:/app/agent.py:ro
+    entrypoint: ["python", "-u", "/app/agent.py"]
+  kie8-ausf:
+    image: python:3.11-slim
+    container_name: kie8-ausf
+    network_mode: "service:ausf"
+    depends_on:
+      ausf:
+        condition: service_started
+    environment:
+      KIE_NODE: ausf
+      KIE_NF_IP: 10.45.0.22
+      KIE_TEST_KEY: ${KIE_TEST_KEY:?Generate a fresh 256-bit test-only HMAC key}
+    volumes:
+      - ${KIE_SOURCE_DIR:?Absolute repository root}/experiment/kie_agent.py:/app/agent.py:ro
+    entrypoint: ["python", "-u", "/app/agent.py"]
+  kie8-udm:
+    image: python:3.11-slim
+    container_name: kie8-udm
+    network_mode: "service:udm"
+    depends_on:
+      udm:
+        condition: service_started
+    environment:
+      KIE_NODE: udm
+      KIE_NF_IP: 10.45.0.23
+      KIE_TEST_KEY: ${KIE_TEST_KEY:?Generate a fresh 256-bit test-only HMAC key}
+    volumes:
+      - ${KIE_SOURCE_DIR:?Absolute repository root}/experiment/kie_agent.py:/app/agent.py:ro
+    entrypoint: ["python", "-u", "/app/agent.py"]
+  kie8-udr:
+    image: python:3.11-slim
+    container_name: kie8-udr
+    network_mode: "service:udr"
+    depends_on:
+      udr:
+        condition: service_started
+    environment:
+      KIE_NODE: udr
+      KIE_NF_IP: 10.45.0.24
+      KIE_TEST_KEY: ${KIE_TEST_KEY:?Generate a fresh 256-bit test-only HMAC key}
+    volumes:
+      - ${KIE_SOURCE_DIR:?Absolute repository root}/experiment/kie_agent.py:/app/agent.py:ro
+    entrypoint: ["python", "-u", "/app/agent.py"]
+  kie8-pcf:
+    image: python:3.11-slim
+    container_name: kie8-pcf
+    network_mode: "service:pcf"
+    depends_on:
+      pcf:
+        condition: service_started
+    environment:
+      KIE_NODE: pcf
+      KIE_NF_IP: 10.45.0.25
+      KIE_TEST_KEY: ${KIE_TEST_KEY:?Generate a fresh 256-bit test-only HMAC key}
+    volumes:
+      - ${KIE_SOURCE_DIR:?Absolute repository root}/experiment/kie_agent.py:/app/agent.py:ro
+    entrypoint: ["python", "-u", "/app/agent.py"]
+  kie8-bsf:
+    image: python:3.11-slim
+    container_name: kie8-bsf
+    network_mode: "service:bsf"
+    depends_on:
+      bsf:
+        condition: service_started
+    environment:
+      KIE_NODE: bsf
+      KIE_NF_IP: 10.45.0.26
+      KIE_TEST_KEY: ${KIE_TEST_KEY:?Generate a fresh 256-bit test-only HMAC key}
+    volumes:
+      - ${KIE_SOURCE_DIR:?Absolute repository root}/experiment/kie_agent.py:/app/agent.py:ro
+    entrypoint: ["python", "-u", "/app/agent.py"]
