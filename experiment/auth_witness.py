@@ -107,20 +107,27 @@ def capture_one(pid: str, dest: Path, lab: str, seconds: int) -> bool:
             time.sleep(1.5)
             if p.poll() is not None:
                 raise RuntimeError("Read-only tcpdump unavailable")
+            since = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             command("docker", "compose", "--profile", "ran", "restart", "ue",
                     cwd=lab, timeout=70)
             tunnel = False
+            registered = False
             for _ in range(seconds):
+                logs = command("docker", "logs", "--since", since,
+                               "ueransim-ue", timeout=7, check=False)
+                # The result of 5G-AKA/registration, not PDU setup, is
+                # the necessary ground truth for authentication routing.
+                registered = registered or (
+                    "Initial Registration is successful" in logs.stdout + logs.stderr)
                 x = command("docker", "compose", "--profile", "ran",
                             "exec", "-T", "ue", "sh", "-lc",
                             "ip link show uesimtun0",
                             cwd=lab, timeout=7, check=False)
-                if x.returncode == 0:
-                    tunnel = True
-                    time.sleep(1)
+                tunnel = tunnel or x.returncode == 0
+                if registered and tunnel:
                     break
                 time.sleep(1)
-            return tunnel
+            return registered, tunnel
         finally:
             if p.poll() is None:
                 os.killpg(p.pid, signal.SIGINT)
@@ -160,21 +167,22 @@ def collect(lab: Path, out: Path, trials: int = 2, seconds: int = 16) -> dict:
             raise RuntimeError("AUSF not available after clean test restart")
         nrf = nrf_udm_discovery()
         text_path = out.parent / f"real-ausf-tcp-trial{trial}.txt"
-        tunnel = capture_one(pid_ausf(), text_path, str(lab), seconds)
+        registered, tunnel = capture_one(pid_ausf(), text_path, str(lab), seconds)
         targets = tcp_syn_targets(text_path.read_text())
         if not targets:
             raise RuntimeError("No live AUSF TCP SYN observed; fail closed")
         authorized = set(nrf["udm_ips"])
         if not authorized.intersection(targets):
             raise RuntimeError("No observed genuine AUSF->UDM authentication socket")
-        if not tunnel:
-            raise RuntimeError("UE did not establish normal PDU/TUN session")
+        if not registered:
+            raise RuntimeError("UERANSIM UE did not complete 5G-AKA registration")
         local = {n: probe(n, 3)["up"] for n in ("nrf", "ausf", "udm")}
         row = {
             "trial": trial, "time_utc": datetime.now(timezone.utc).isoformat(),
             "authorized_udm": sorted(authorized), "observed_targets": sorted(set(targets)),
             "observed_udm_tcp_syn": sum(x in authorized for x in targets),
-            "ue_pdu_tun": int(tunnel), "local_sba_up": local,
+            "ue_registration_ok": int(registered), "ue_pdu_tun": int(tunnel),
+            "local_sba_up": local,
             "cross_view_unexpected": sorted(
                 set(targets) - authorized - {NRF}),
             "source_kind": "REAL_PASSIVE_HEADER_OBSERVATION",
@@ -184,6 +192,7 @@ def collect(lab: Path, out: Path, trials: int = 2, seconds: int = 16) -> dict:
         result["trials"].append(row)
         out.write_text(json.dumps(result, indent=2), encoding="utf8")
         print(json.dumps({"trial": trial, "observed_targets": row["observed_targets"],
+                          "auth_registered": row["ue_registration_ok"],
                           "pdu_tun": row["ue_pdu_tun"]}), flush=True)
     return result
 
