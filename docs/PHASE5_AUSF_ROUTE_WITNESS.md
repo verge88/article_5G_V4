@@ -26,11 +26,15 @@ For each real UERANSIM UE registration in the running Docker lab:
    establish a fresh connection, start a temporary read-only
    `tcpdump` in the AUSF Linux network namespace, and restart the
    simulated UERANSIM UE to generate a genuine registration.
-   Record outgoing TCP SYN **header metadata only**, without packet
+   Confirm successful UE registration in **fresh UE logs**. Record
+   outgoing TCP SYN **header metadata only**, without packet
    payload, subscriber identities or encryption keys.
 3. **Local NF availability view:** separately test NRF, AUSF and UDM
-   HTTP/2 listeners. Verify the UE successfully establishes a TUN
-   PDU session. The later standalone traffic-test checks recovery.
+   HTTP/2 listeners. Verify the UE completes 5G registration.
+   Also record presence/absence of a PDU TUN; its re-establishment
+   after an AUSF restart is NOT required for authentication-route
+   proof. An earlier standalone traffic-test already proves the
+   baseline PDU session and user-plane transport.
 
 The consistency criterion is:
 
@@ -97,7 +101,7 @@ The pinned GitHub Actions smoke mode should upload:
 
 The workflow fails if the lab cannot register UE and observe AUSF→UDM
 transport after the clean restart, if NFDiscovery has no valid
-`nudm-ueau` profile, or if the final traffic test fails.
+`nudm-ueau` profile, or if the observed UE authentication/registration fails.
 
 ## Next steps before claiming a 5G cache-poisoning result
 
