@@ -172,3 +172,27 @@ at equal budget **without worse FPR**. Compare measured results
 without retuning to achieve this outcome.
 
 [Scientific Phase 8 design](docs/PHASE8_8NF_GRAPH_BUDGET.md).
+
+## Phase 9 — Bayesian state-space filtering and approximate POMDP active signed KIE
+
+Instead of assuming a more complex neural model will win, Phase 9
+implements a **calibrated two-state Bayesian hidden-NF filter**:
+fault onset, persistence, lagged neighbor coupling and signed-KIE
+measurement reliability are estimated solely from earlier real FULL
+lab-agent KIE campaigns. An approximate one-step POMDP greedily
+selects the next **two of eight** actual HMAC-verified queries by
+expected fault-verification benefit and posterior/neighbor-forecast
+uncertainty reduction. It never reads current signed responses or
+target labels before selecting. Comparisons reuse genuinely sent
+Open5GS/UERANSIM KIE requests and locked Phase 8 attack scenarios.
+
+Seven equal-budget policies compare full, rotation, graph-neighbor
+heuristic, Graph-GRU, Bayesian entropy-only, Bayesian no-edge and
+Bayesian POMDP. Raw prospective CSV, frozen transition/emission
+model, true signed counts, per-episode delays and full lab evidence
+are archived by GitHub Actions. Phase 8's negative GNN result is
+unchanged; **Phase 9's Bayesian advantage is not assumed**.
+
+The controller is a **factorized approximate one-step POMDP**,
+not an exact POMDP solver, native 3GPP NF attestation or actual NF
+compromise. See [Phase 9 scientific protocol](docs/PHASE9_BAYESIAN_POMDP.md).
