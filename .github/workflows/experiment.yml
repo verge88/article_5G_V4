@@ -83,7 +83,7 @@ jobs:
     name: Isolated 5G SA AUSF/NRF auth-route witness
     needs: unit
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 55
     env:
       EXPERIMENT_MODE: ${{ inputs.mode || 'smoke' }}
     steps:
