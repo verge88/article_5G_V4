@@ -34,7 +34,8 @@ def command(*args, cwd=None, timeout=40, check=True):
     return r
 
 
-def nrf_udm_discovery(expected_udms: set[str] | None = None) -> dict:
+def nrf_udm_discovery(expected_udms: set[str] | None = None,
+                      raw_path: Path | None = None) -> dict:
     """Retrieve real UDM service endpoints from live NRF NFDiscovery.
 
     In the original single-UDM phase, require exactly the pinned UDM.
@@ -50,6 +51,9 @@ def nrf_udm_discovery(expected_udms: set[str] | None = None) -> dict:
         "--max-time", "5", "-G", f"http://{NRF}:{SBI}/nnrf-disc/v1/nf-instances",
         "--data-urlencode", "target-nf-type=UDM",
         "--data-urlencode", "requester-nf-type=AUSF", timeout=10)
+    if raw_path is not None:
+        raw_path.parent.mkdir(parents=True, exist_ok=True)
+        raw_path.write_bytes(r.stdout.encode('utf8'))
     payload = json.loads(r.stdout)
     instances = payload.get("nfInstances")
     if not isinstance(instances, list) or not instances:
