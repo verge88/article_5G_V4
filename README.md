@@ -219,3 +219,26 @@ No weights, utilities, operating thresholds, attack
 seeds or service topology are retuned to achieve
 favorable results. These remain staged LAB SIGNER
 counter faults, **not native compromised NFs**.
+
+## Phase 11 — host-signed native packet/NRF witness with missing-observation abstention
+
+A new **prospective live** pilot observes actual AUSF outgoing TCP SYN headers
+and live NRF UDM NFDiscovery records during three controlled, reversible
+Linux-netns DNAT fault/restoration pairs. It starts two concurrent host-side
+packet witnesses: a full **audit** sensor and a policy sensor whose capture
+filter is deliberately wrong in one pair; another pair deliberately withholds
+the policy's NRF observation. The fixed three-valued detector reports
+`ALARM`, `NORMAL`, or `UNKNOWN` when essential evidence is unavailable.
+
+Each raw header capture and NRF response is hashed and bound to a canonical
+manifest with an **ephemeral host-observer Ed25519 signature**, independently
+verified before scoring. The observer public key is archived; the private
+key is not uploaded. This is **not** native NF signing, hardware attestation,
+proof of an uncompromised host or SBA/NAS/PFCP semantic monitoring. Missing
+telemetry is a controlled collection failure, not a claim of natural packet
+loss. The frozen Phase 10 GNN/POMDP models cannot be fairly compared without
+retraining on matching native event features.
+
+See [Phase 11 preregistered scientific protocol](docs/PHASE11_FROZEN_NATIVE_OBSERVABILITY.md).
+No live Phase 11 results are claimed until CI completes and artifacts are
+audited; the six-episode pilot cannot establish generalization.
