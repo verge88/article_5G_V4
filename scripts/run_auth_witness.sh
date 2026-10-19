@@ -124,3 +124,15 @@ python -m experiment.eval_route_fault \
   --input results/real_route_fault.json \
   --output results/real_route_fault_metrics.json
 echo "PASS: REAL transport misroute to non-UDM PCF and verified clean restoration"
+
+# Phase 11: NEW live, two-sensor native AUSF TCP witness with controlled
+# collector blind spots, host-signed raw packet/NRF evidence, and explicit
+# UNKNOWN diagnoses when a necessary witness is unavailable.
+# This is NOT stock Open5GS NF attestation or a native SBA counter signature.
+python -m experiment.phase11_witness --lab "$LAB" \
+  --output results/phase11_native_observability.json
+python -m experiment.eval_phase11 \
+  --input results/phase11_native_observability.json \
+  --output results/phase11_native_observability_metrics.json
+echo "PASS: Phase 11 live host-signed native packet/NRF observer + abstention pilot"
+
