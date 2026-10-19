@@ -68,7 +68,7 @@ def raw_nrf_udm_addresses(raw: bytes) -> list[str]:
                     addresses.add(endpoint["ipv4Address"])
             if service.get("apiPrefix"):
                 host = urlparse(service["apiPrefix"]).hostname
-                if host and re.fullmatch(r"[\\d.]+", host):
+                if host and re.fullmatch(r"[\d.]+", host):
                     addresses.add(host)
             if not addresses:
                 addresses.update(nf.get("ipv4Addresses") or [])
